@@ -1,11 +1,11 @@
 (() => {
 'use strict';
 const host=document.getElementById('robot');
-const scene=new THREE.Scene();scene.background=null;
-const camera=new THREE.PerspectiveCamera(42,1,.1,100);camera.position.set(0,3.05,9.9);
-const renderer=new THREE.WebGLRenderer({antialias:true,alpha:true});renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.setClearColor(0x000000,0);renderer.outputEncoding=THREE.sRGBEncoding;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.15;host.appendChild(renderer.domElement);
-const controls=new THREE.OrbitControls(camera,renderer.domElement);controls.target.set(0,2.05,0);controls.enableDamping=true;controls.minDistance=3.5;controls.maxDistance=17;camera.lookAt(controls.target);
-scene.add(new THREE.HemisphereLight(0xe9e6ef,0x211822,1.45));const sun=new THREE.DirectionalLight(0xffffff,2.35);sun.position.set(4,8,6);scene.add(sun);const fill=new THREE.PointLight(0xf6bb84,1.05,13);fill.position.set(-4,4,4);scene.add(fill);
+const scene=new THREE.Scene();scene.background=new THREE.Color(0xb9d9ef);
+const camera=new THREE.PerspectiveCamera(42,1,.1,100);camera.position.set(6.1,5.3,16.8);
+const renderer=new THREE.WebGLRenderer({antialias:true,alpha:true});renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.setClearColor(0xb9d9ef,1);renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;renderer.outputEncoding=THREE.sRGBEncoding;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.15;host.appendChild(renderer.domElement);
+const controls=new THREE.OrbitControls(camera,renderer.domElement);controls.target.set(0,2.05,-2.0);controls.enableDamping=true;controls.minDistance=4;controls.maxDistance=37;controls.maxPolarAngle=Math.PI*.485;camera.lookAt(controls.target);
+scene.add(new THREE.HemisphereLight(0xe9e6ef,0x211822,1.45));const sun=new THREE.DirectionalLight(0xffffff,2.35);sun.position.set(-8,16,12);sun.castShadow=true;sun.shadow.mapSize.set(2048,2048);sun.shadow.camera.left=-22;sun.shadow.camera.right=22;sun.shadow.camera.top=22;sun.shadow.camera.bottom=-22;sun.shadow.normalBias=.025;scene.add(sun);const fill=new THREE.PointLight(0xf6bb84,1.05,13);fill.position.set(-4,4,4);scene.add(fill);
 const mat=(c)=>new THREE.MeshStandardMaterial({color:c,roughness:.55,metalness:.12});const white=mat(0xf3f5fa),dark=mat(0x1a1723),metal=mat(0x737582),blue=new THREE.MeshStandardMaterial({color:0x42bbff,emissive:0x0a82ff,emissiveIntensity:1.6,roughness:.16}),black=mat(0x080a15);
 function box(parent,w,h,d,x,y,z,m){const o=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),m);o.position.set(x,y,z);parent.add(o);return o}
 function sphere(parent,r,x,y,z,m){const o=new THREE.Mesh(new THREE.SphereGeometry(r,16,12),m);o.position.set(x,y,z);parent.add(o);return o}
@@ -23,7 +23,7 @@ function roundedGeometry(w,h,depth,r=.1){
 function roundedBox(parent,w,h,d,x,y,z,m,r=.12){
  const o=new THREE.Mesh(roundedGeometry(w,h,d,r),m);o.position.set(x,y,z);parent.add(o);return o;
 }
-const robot=new THREE.Group();scene.add(robot);
+const robot=new THREE.Group();scene.add(robot);robot.traverse(o=>{if(o.isMesh){o.castShadow=true}});
 const armor=new THREE.MeshStandardMaterial({color:0xf1f1f3,metalness:.08,roughness:.32});
 const screenMat=new THREE.MeshStandardMaterial({color:0x070c15,metalness:.1,roughness:.12});
 const eyeMat=new THREE.MeshBasicMaterial({color:0x7ddcff});
@@ -176,27 +176,192 @@ document.getElementById('loadDance').addEventListener('change',async e=>{const f
 renderPoses();renderFrames();
 
 
-// ===== LCA entrance: real photo behind transparent 3D robot =====
+// ===== Photo-informed, fully 3D reconstruction of Las Cruces Academy entrance =====
+// Scale and hidden surfaces are approximate: the references are photos, not architectural plans.
 const stage=new THREE.Group();scene.add(stage);
 const stageTheme=document.getElementById('stageTheme');
 const stageLights=document.getElementById('stageLights');
-const backdrop=document.querySelector('.campus-backdrop');
-const ground=new THREE.Mesh(new THREE.PlaneGeometry(4.2,2.1),new THREE.MeshBasicMaterial({color:0x1e1715,transparent:true,opacity:.095,depthWrite:false}));
-ground.rotation.x=-Math.PI/2;ground.position.set(0,-.235,.1);stage.add(ground);
-const lights=[
- new THREE.PointLight(0xffe2bb,.75,12),
- new THREE.PointLight(0xd5e9ff,.45,12)
+const school=new THREE.Group();stage.add(school);
+const facade=mat(0xe5dfd1),sideStucco=mat(0xd9d1c1),roofMat=mat(0xd2d0c7);
+const trim=mat(0x673b45),concrete=mat(0xbcbab1),stone=mat(0xb6aa97);
+const glass=new THREE.MeshPhysicalMaterial({color:0x527785,metalness:.24,roughness:.15,transparent:true,opacity:.83,clearcoat:.85});
+const darkFrame=mat(0x513e43),gravel=mat(0xb08e77);
+const pavement=mat(0x45474b),earth=mat(0x6e5544);
+function block(parent,w,h,d,x,y,z,material,cast=true){
+ const o=box(parent,w,h,d,x,y,z,material);o.castShadow=cast;o.receiveShadow=true;return o;
+}
+function plane(parent,w,h,x,y,z,material,rx=0){
+ const o=new THREE.Mesh(new THREE.PlaneGeometry(w,h),material);
+ o.position.set(x,y,z);o.rotation.x=rx;o.receiveShadow=true;parent.add(o);return o;
+}
+function cyl(parent,r1,r2,h,x,y,z,material,n=12){
+ const o=new THREE.Mesh(new THREE.CylinderGeometry(r1,r2,h,n),material);
+ o.position.set(x,y,z);o.castShadow=true;o.receiveShadow=true;parent.add(o);return o;
+}
+// Textured stucco and desert ground use deterministic procedural texture; no external image downloads.
+function noiseTexture(base,variance,size=256,scale=1){
+ const c=document.createElement('canvas');c.width=c.height=size;
+ const ctx=c.getContext('2d');ctx.fillStyle=base;ctx.fillRect(0,0,size,size);
+ let seed=38183;const rand=()=>{seed=(seed*1664525+1013904223)>>>0;return seed/4294967296};
+ for(let i=0;i<size*size*.19;i++){
+  const x=rand()*size,y=rand()*size,a=rand()*.23;
+  ctx.fillStyle=rand()>.5?'rgba(255,255,255,'+a+')':'rgba(46,31,20,'+(a*.6)+')';
+  ctx.fillRect(x,y,1+rand()*2*variance,1+rand()*2*variance);
+ }
+ const t=new THREE.CanvasTexture(c);t.wrapS=t.wrapT=THREE.RepeatWrapping;t.repeat.set(scale,scale);t.encoding=THREE.sRGBEncoding;return t;
+}
+facade.map=noiseTexture('#e9e4d8',1,256,5);facade.color.setHex(0xffffff);facade.needsUpdate=true;
+sideStucco.map=noiseTexture('#ded7ca',1,256,4);sideStucco.color.setHex(0xffffff);sideStucco.needsUpdate=true;
+gravel.map=noiseTexture('#b79c83',3,256,12);gravel.color.setHex(0xffffff);gravel.needsUpdate=true;
+// Large natural desert landscape and subtle concrete front apron.
+block(stage,90,.18,90,0,-.38,-3,gravel,false);
+block(stage,42,.065,10.2,0,-.24,12.6,pavement,false);
+// Side parking bays and white line markings.
+const whiteLine=new THREE.MeshBasicMaterial({color:0xdedbd3});
+for(let x of [-17,-13,-9,9,13,17]){
+ block(stage,.055,.015,3.4,x,-.197,11.3,whiteLine,false);
+}
+block(stage,38,.014,.07,0,-.195,10.1,whiteLine,false);
+// School is set back behind the robot, facing the camera.
+const wallZ=-10.8;
+block(school,25.2,5.65,3.8,0,2.62,wallZ-1.5,facade);
+block(school,8.3,6.1,4.0,-8.9,2.85,wallZ-1.1,facade);
+block(school,8.3,6.1,4.0,8.9,2.85,wallZ-1.1,facade);
+block(school,7.5,6.75,3.8,-3.8,3.14,wallZ-1.8,facade);
+block(school,7.5,6.75,3.8,3.8,3.14,wallZ-1.8,facade);
+// Parapet roof lines.
+block(school,25.7,.28,4.1,0,5.57,wallZ-1.5,sideStucco);
+block(school,15.0,.22,4.05,0,6.32,wallZ-1.75,roofMat);
+block(school,6.4,.25,4.2,0,6.56,wallZ-1.65,roofMat);
+// Recessed central entry: two side returns, shaded portico, red columns and beam.
+const doorZ=wallZ+.38;
+block(school,4.1,3.45,.13,0,1.56,doorZ,sideStucco);
+block(school,.23,3.3,2.15,-2.22,1.55,wallZ+1.18,sideStucco);
+block(school,.23,3.3,2.15,2.22,1.55,wallZ+1.18,sideStucco);
+block(school,5.3,.35,2.45,0,3.37,wallZ+1.25,trim);
+block(school,5.3,.13,2.48,0,3.08,wallZ+1.26,trim);
+for(const x of [-2.4,2.4]){
+ block(school,.22,3.2,.24,x,1.47,wallZ+2.28,trim);
+ block(school,.32,.13,.38,x,2.99,wallZ+2.28,trim);
+}
+const glassZ=wallZ+.49;
+block(school,2.54,2.52,.07,0,1.34,glassZ,glass);
+block(school,.075,2.65,.13,0,1.36,glassZ+.08,darkFrame);
+for(const x of [-1.29,1.29])block(school,.09,2.64,.13,x,1.36,glassZ+.08,darkFrame);
+for(const y of [.1,2.66])block(school,2.7,.08,.13,0,y,glassZ+.08,darkFrame);
+block(school,2.68,.055,.11,0,2.10,glassZ+.09,darkFrame);
+for(const x of [-.1,.1])block(school,.065,.17,.1,x,.98,glassZ+.17,stone);
+// Reflective window panels, dark burgundy mullions; accurately placed left and right.
+function windowAt(x,y,z,w=2.15,h=1.85){
+ block(school,w+.19,h+.19,.15,x,y,z-.07,darkFrame);
+ block(school,w,h,.09,x,y,z+.04,glass);
+ block(school,.07,h,.13,x,y,z+.13,darkFrame);
+ block(school,w,.065,.13,x,y,z+.13,darkFrame);
+ block(school,w,.055,.13,x,y+.31,z+.14,darkFrame);
+ const reflect=new THREE.MeshBasicMaterial({color:0xc0d9e2,transparent:true,opacity:.20,depthWrite:false});
+ plane(school,w*.38,h*.94,x-w*.23,y,z+.105,reflect);
+}
+windowAt(-7.3,2.46,wallZ+.48,2.4,2.0);
+windowAt(7.3,2.46,wallZ+.48,2.4,2.0);
+windowAt(-11.2,2.5,wallZ+.45,1.55,1.65);
+windowAt(11.2,2.5,wallZ+.45,1.55,1.65);
+// Wall mounted lighting and simple exterior signage.
+const lampMat=mat(0xd8d3c7);
+for(const x of [-8.7,8.7]){
+ block(school,.33,.18,.25,x,4.62,wallZ+.55,lampMat);
+ block(school,.24,.07,.18,x,4.50,wallZ+.68,new THREE.MeshBasicMaterial({color:0xfff1d7}));
+}
+// Concrete path extends from the building to the front edge.
+block(stage,4.75,.09,20.9,0,-.225,.42,concrete,false);
+for(let z=-8.1;z<10.7;z+=2.65){
+ block(stage,4.74,.007,.028,0,-.169,z,mat(0x8c8981),false);
+}
+block(stage,.035,.009,20.9,-2.38,-.166,.42,mat(0xd2cfc8),false);
+block(stage,.035,.009,20.9,2.38,-.166,.42,mat(0xd2cfc8),false);
+// Stone-lined desert tree beds; curved low retaining walls.
+const rockMaterials=[mat(0xc9c1b2),mat(0xb1a899),mat(0xa69c8e),mat(0xd2c7b6)];
+function makeBed(cx,cz,rx,rz){
+ const soil=new THREE.Mesh(new THREE.CylinderGeometry(1,1,.06,64),earth);
+ soil.scale.set(rx,1,rz);soil.position.set(cx,-.23,cz);soil.receiveShadow=true;stage.add(soil);
+ for(let i=0;i<76;i++){
+  const a=i/76*Math.PI*2;
+  const r=1+.027*Math.sin(i*4.2);
+  const x=cx+rx*r*Math.cos(a),z=cz+rz*r*Math.sin(a);
+  const rock=new THREE.Mesh(new THREE.DodecahedronGeometry(.16+(i%5)*.013,0),rockMaterials[i%4]);
+  rock.position.set(x,-.14,z);rock.scale.set(1.65,.68,.75);rock.rotation.y=-a;rock.castShadow=true;stage.add(rock);
+ }
+}
+// Main right tree island and smaller left tree bed, based on the reference views.
+makeBed(7.25,-.3,3.6,3.0);
+makeBed(-7.2,-.8,3.15,2.5);
+// Branches, non-spherical irregular foliage clusters and leaf patches.
+const bark=mat(0x655a4c),leafMaterials=[
+ new THREE.MeshStandardMaterial({color:0x465c45,roughness:1,flatShading:true}),
+ new THREE.MeshStandardMaterial({color:0x566a50,roughness:1,flatShading:true}),
+ new THREE.MeshStandardMaterial({color:0x69765b,roughness:1,flatShading:true}),
+ new THREE.MeshStandardMaterial({color:0x3c5041,roughness:1,flatShading:true})
 ];
-lights[0].position.set(-3,4,4);lights[1].position.set(3,4,3);
-lights.forEach(l=>stage.add(l));
-const themeColors={entrance:'#d6c7b7',concert:'#27101d',studio:'#283344',space:'#07152c'};
+function seeded(seed){return ()=>{seed=(seed*1664525+1013904223)>>>0;return seed/4294967296}}
+function branch(parent,from,to,radius){
+ const d=new THREE.Vector3().subVectors(to,from);
+ const o=new THREE.Mesh(new THREE.CylinderGeometry(radius*.72,radius,d.length(),7),bark);
+ o.position.copy(from).add(to).multiplyScalar(.5);
+ o.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),d.clone().normalize());
+ o.castShadow=true;parent.add(o);
+}
+function tree(x,z,seed,scale=1){
+ const r=seeded(seed),g=new THREE.Group();g.position.set(x,-.20,z);g.scale.setScalar(scale);stage.add(g);
+ const origin=new THREE.Vector3(0,0,0);
+ const tips=[];
+ for(let k=0;k<5;k++){
+  const a=k*Math.PI*2/5+r()*.5;
+  const base=new THREE.Vector3((r()-.5)*.45,0,(r()-.5)*.35);
+  const mid=new THREE.Vector3(Math.cos(a)*(.48+r()*.5),1.5+r()*.7,Math.sin(a)*(.48+r()*.5));
+  const tip=new THREE.Vector3(Math.cos(a)*(1.55+r()*1.1),3.15+r()*1.0,Math.sin(a)*(1.3+r()*.85));
+  branch(g,base,mid,.15);branch(g,mid,tip,.09);
+  tips.push(tip);
+  for(let j=0;j<4;j++){
+   const off=new THREE.Vector3((r()-.5)*1.5,(r()-.5)*.8,(r()-.5)*1.5);
+   branch(g,mid.clone().lerp(tip,.4),tip.clone().add(off),.037);
+  }
+ }
+ for(let i=0;i<92;i++){
+  const tip=tips[i%tips.length],angle=r()*Math.PI*2,rr=Math.sqrt(r())*1.7;
+  const px=tip.x+Math.cos(angle)*rr,py=tip.y+(r()-.5)*1.3,pz=tip.z+Math.sin(angle)*rr;
+  const crown=new THREE.Mesh(new THREE.IcosahedronGeometry(.48+r()*.43,1),leafMaterials[i%4]);
+  crown.position.set(px,py,pz);crown.scale.set(1.4+r()*.7,.42+r()*.45,1.1+r()*.65);
+  crown.rotation.set(r()*.6,r()*6.28,r()*.3);crown.castShadow=true;g.add(crown);
+ }
+}
+tree(7.3,-.3,87321,1.06);
+tree(-7.2,-.8,13429,.94);
+// Sparse desert shrubs along the facade.
+function shrub(x,z,seed){
+ const r=seeded(seed),g=new THREE.Group();g.position.set(x,-.2,z);stage.add(g);
+ for(let i=0;i<10;i++){
+  const a=r()*6.28,rad=r()*.35;
+  const o=new THREE.Mesh(new THREE.IcosahedronGeometry(.16+r()*.18,1),leafMaterials[i%4]);
+  o.position.set(Math.cos(a)*rad,.16+r()*.23,Math.sin(a)*rad);o.scale.set(1.2,.5,1.15);g.add(o);
+ }
+}
+for(let x=-12;x<=12;x+=1.7){if(Math.abs(x)>3.5)shrub(x,-8.8,Math.floor((x+14)*100));}
+// Optional scene styles: all retain full 3D geometry.
+const sceneThemes={
+ entrance:{sky:0xb9d9ef,ambient:1.45,exposure:1.15},
+ concert:{sky:0x201b2b,ambient:.82,exposure:.92},
+ studio:{sky:0xbcc8d1,ambient:1.55,exposure:1.1},
+ space:{sky:0x081226,ambient:.7,exposure:.85}
+};
 stageTheme.addEventListener('change',()=>{
- const theme=stageTheme.value;
- backdrop.style.display=theme==='entrance'?'block':'none';
- host.style.background=theme==='entrance'?'transparent':themeColors[theme];
- ground.visible=theme==='entrance';
- announce('Scene: '+stageTheme.options[stageTheme.selectedIndex].text);
+ const t=sceneThemes[stageTheme.value]||sceneThemes.entrance;
+ scene.background.setHex(t.sky);renderer.toneMappingExposure=t.exposure;
+ announce('3D Scene: '+stageTheme.options[stageTheme.selectedIndex].text);
 });
+// Soft ambient accent lighting, subdued in daylight.
+const lights=[new THREE.PointLight(0xffdfbd,.28,12),new THREE.PointLight(0xd9e9ff,.22,12)];
+lights[0].position.set(-3,4,3);lights[1].position.set(3,4,3);lights.forEach(l=>stage.add(l));
+// Add cast shadows to all robot pieces after complete assembly.
+robot.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true}});
 function resize(){const w=Math.max(1,host.clientWidth),h=Math.max(1,host.clientHeight);camera.aspect=w/h;camera.updateProjectionMatrix();renderer.setSize(w,h,false)}window.addEventListener('resize',resize);resize();
 function animate(time){
  requestAnimationFrame(animate);
